@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Classificador de Cogumelos IA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <style>
+        body { background: #f8f9fa; padding: 20px; }
+        .card { border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .result-box { padding: 20px; border-radius: 10px; font-weight: bold; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="text-success m-0">Análise de Cogumelo com IA</h2>
+            <a href="train.html" class="btn btn-outline-primary">⚙️ Treinar Modelo</a>
+        </div>
+
+        <form id="mushroom-form" class="row g-3">
+            <div id="campos" class="row"></div>
+            <div class="col-12 text-center mt-4">
+                <button type="submit" class="btn btn-success btn-lg px-5">Analisar Cogumelo</button>
+            </div>
+        </form>
+
+        <div id="resultado" class="mt-4 text-center d-none">
+            <div class="result-box" id="result-text"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Mapeamento Traduzido para exibição no formulário
+    const MAPEAMENTO = {
+        "cap-shape": {"Sino": "b", "Cônico": "c", "Convexo": "x", "Plano": "f", "Rebaixado": "k", "Afundado": "s"},
+        "cap-surface": {"Fibroso": "f", "Sulcos": "g", "Escamoso": "y", "Liso": "s"},
+        "cap-color": {"Marrom": "n", "Bege": "b", "Canela": "c", "Cinza": "g", "Verde": "r", "Rosa": "p", "Roxo": "u", "Vermelho": "e", "Branco": "w", "Amarelo": "y"},
+        "bruises": {"Tem": "t", "Não": "f"},
+        "odor": {"Amêndoa": "a", "Anis": "l", "Creosote": "c", "Peixe": "y", "Fétido": "f", "Mofo": "m", "Nenhum": "n", "Pungente": "p", "Especiarias": "s"},
+        "gill-attachment": {"Anexada": "a", "Decorrente": "d", "Livre": "f", "Chanfrada": "n"},
+        "gill-spacing": {"Fechado": "c", "Aglomerado": "w", "Distante": "d"},
+        "gill-size": {"Largo": "b", "Estreito": "n"},
+        "gill-color": {"Preto": "k", "Marrom": "n", "Bege": "b", "Chocolate": "h", "Cinza": "g", "Verde": "r", "Laranja": "o", "Rosa": "p", "Roxo": "u", "Vermelho": "e", "Branco": "w", "Amarelo": "y"},
+        "stalk-shape": {"Alargando": "e", "Afunilando": "t"},
+        "stalk-root": {"Bulboso": "b", "Clava": "c", "Copo": "u", "Igual": "e", "Rizomorfos": "z", "Enraizado": "r", "Desconhecido": "?"},
+        "stalk-surface-above-ring": {"Fibroso": "f", "Escamoso": "y", "Sedoso": "k", "Liso": "s"},
+        "stalk-surface-below-ring": {"Fibroso": "f", "Escamoso": "y", "Sedoso": "k", "Liso": "s"},
+        "stalk-color-above-ring": {"Marrom": "n", "Bege": "b", "Canela": "c", "Cinza": "g", "Laranja": "o", "Rosa": "p", "Vermelho": "e", "Branco": "w", "Amarelo": "y"},
+        "stalk-color-below-ring": {"Marrom": "n", "Bege": "b", "Canela": "c", "Cinza": "g", "Laranja": "o", "Rosa": "p", "Vermelho": "e", "Branco": "w", "Amarelo": "y"},
+        "veil-type": {"Parcial": "p", "Universal": "u"},
+        "veil-color": {"Marrom": "n", "Laranja": "o", "Branco": "w", "Amarelo": "y"},
+        "ring-number": {"Nenhum": "n", "Um": "o", "Dois": "t"},
+        "ring-type": {"Teia": "c", "Evanescente": "e", "Alargado": "f", "Grande": "l", "Nenhum": "n", "Pendente": "p", "Bainha": "s", "Zona": "z"},
+        "spore-print-color": {"Preto": "k", "Marrom": "n", "Bege": "b", "Chocolate": "h", "Verde": "r", "Laranja": "o", "Roxo": "u", "Branco": "w", "Amarelo": "y"},
+        "population": {"Abundante": "a", "Agrupado": "c", "Numeroso": "n", "Disperso": "s", "Vários": "v", "Solitário": "y"},
+        "habitat": {"Gramado": "g", "Folhas": "l", "Prado": "m", "Caminho": "p", "Urbano": "u", "Lixo": "w", "Floresta": "d"}
+    };
+
+    // Dicionário de Tradução dos Títulos dos Campos
+    const TRADUCAO_TITULOS = {
+        "cap-shape": "Forma do Chapéu",
+        "cap-surface": "Superfície do Chapéu",
+        "cap-color": "Cor do Chapéu",
+        "bruises": "Manchas/Contusões",
+        "odor": "Odor",
+        "gill-attachment": "Ligação das Lamelas",
+        "gill-spacing": "Espaçamento das Lamelas",
+        "gill-size": "Tamanho das Lamelas",
+        "gill-color": "Cor das Lamelas",
+        "stalk-shape": "Forma do Estipe (Caule)",
+        "stalk-root": "Raiz do Estipe",
+        "stalk-surface-above-ring": "Superfície Acima do Anel",
+        "stalk-surface-below-ring": "Superfície Abaixo do Anel",
+        "stalk-color-above-ring": "Cor Acima do Anel",
+        "stalk-color-below-ring": "Cor Abaixo do Anel",
+        "veil-type": "Tipo de Véu",
+        "veil-color": "Cor do Véu",
+        "ring-number": "Quantidade de Anéis",
+        "ring-type": "Tipo de Anel",
+        "spore-print-color": "Cor da Impressão de Esporos",
+        "population": "População",
+        "habitat": "Habitat"
+    };
+
+    const ORDEM_FEATURES = Object.keys(MAPEAMENTO);
+    const OPCOES_ORDEM = {
+        "cap-shape": ['b', 'c', 'x', 'f', 'k', 's'], "cap-surface": ['f', 'g', 'y', 's'], "cap-color": ['n', 'b', 'c', 'g', 'r', 'p', 'u', 'e', 'w', 'y'], "bruises": ['t', 'f'], "odor": ['a', 'l', 'c', 'y', 'f', 'm', 'n', 'p', 's'], "gill-attachment": ['a', 'd', 'f', 'n'], "gill-spacing": ['c', 'w', 'd'], "gill-size": ['b', 'n'], "gill-color": ['k', 'n', 'b', 'h', 'g', 'r', 'o', 'p', 'u', 'e', 'w', 'y'], "stalk-shape": ['e', 't'], "stalk-root": ['b', 'c', 'u', 'e', 'z', 'r', '?'], "stalk-surface-above-ring": ['f', 'y', 'k', 's'], "stalk-surface-below-ring": ['f', 'y', 'k', 's'], "stalk-color-above-ring": ['n', 'b', 'c', 'g', 'o', 'p', 'e', 'w', 'y'], "stalk-color-below-ring": ['n', 'b', 'c', 'g', 'o', 'p', 'e', 'w', 'y'], "veil-type": ['p', 'u'], "veil-color": ['n', 'o', 'w', 'y'], "ring-number": ['n', 'o', 't'], "ring-type": ['c', 'e', 'f', 'l', 'n', 'p', 's', 'z'], "spore-print-color": ['k', 'n', 'b', 'h', 'r', 'o', 'u', 'w', 'y'], "population": ['a', 'c', 'n', 's', 'v', 'y'], "habitat": ['g', 'l', 'm', 'p', 'u', 'w', 'd']
+    };
+
+    // Gera o formulário dinamicamente com nomes traduzidos
+    const camposDiv = document.getElementById('campos');
+    ORDEM_FEATURES.forEach(attr => {
+        const div = document.createElement('div');
+        div.className = 'col-md-4 mb-3';
+        let html = `<label class="form-label small fw-bold text-secondary">${TRADUCAO_TITULOS[attr]}</label>
+                    <select class="form-select" name="${attr}" required>
+                    <option value="" disabled selected>Escolha uma opção...</option>`;
+        for(let [nomePt, cod] of Object.entries(MAPEAMENTO[attr])) {
+            html += `<option value="${cod}">${nomePt}</option>`;
+        }
+        html += `</select>`;
+        div.innerHTML = html;
+        camposDiv.appendChild(div);
+    });
+
+    document.getElementById('mushroom-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const resDiv = document.getElementById('resultado');
+        const resText = document.getElementById('result-text');
+        
+        try {
+            const model = await tf.loadLayersModel('localstorage://modelo-cogumelos');
+            const data = new FormData(e.target);
+            let inputVector = [];
+
+            ORDEM_FEATURES.forEach(attr => {
+                const val = data.get(attr);
+                const opcoes = OPCOES_ORDEM[attr];
+                const oneHot = new Array(opcoes.length).fill(0);
+                const idx = opcoes.indexOf(val);
+                if (idx !== -1) oneHot[idx] = 1;
+                inputVector.push(...oneHot);
+            });
+
+            const prediction = model.predict(tf.tensor2d([inputVector]));
+            const score = prediction.dataSync()[0];
+
+            resDiv.classList.remove('d-none');
+            // Se score > 0.5 é venenoso (p), se menor é comestível (e)
+            if (score > 0.5) {
+                resText.className = "result-box bg-danger text-white border-0 shadow";
+                resText.innerHTML = `🍄 ATENÇÃO: VENENOSO<br><small>Confiança: ${(score * 100).toFixed(2)}%</small>`;
+            } else {
+                resText.className = "result-box bg-success text-white border-0 shadow";
+                resText.innerHTML = `🥗 SEGURO: COMESTÍVEL<br><small>Confiança: ${((1 - score) * 100).toFixed(2)}%</small>`;
+            }
+        } catch (err) {
+            alert("Erro: Modelo não encontrado. Treine a IA primeiro na página de configuração.");
+        }
+    };
+</script>
+</body>
+</html>
