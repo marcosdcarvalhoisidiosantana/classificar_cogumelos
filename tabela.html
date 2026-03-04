@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dicionário de Cogumelos - Traduzido</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f0f2f5; padding: 30px; font-family: sans-serif; }
+        .container { max-width: 1000px; }
+        .main-card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+        h2 { color: #2e7d32; font-weight: bold; border-bottom: 3px solid #66bb6a; display: inline-block; padding-bottom: 5px; }
+        .table thead { background-color: #2e7d32; color: white; }
+        .attr-name { font-weight: 600; color: #388e3c; background-color: #f1f8e9; width: 30%; text-transform: capitalize; }
+        .badge-code { font-family: 'Courier New', monospace; background-color: #333; color: #fff; padding: 2px 8px; border-radius: 4px; font-weight: bold; margin-left: 4px; }
+        .item-group { display: inline-block; margin: 4px 12px 4px 0; padding: 4px 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 0.9rem; }
+        .translation-hint { font-size: 0.8rem; color: #888; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="main-card">
+        <h2 class="mb-4">Guia de Atributos: Cogumelos</h2>
+        <p class="text-muted">Tradução dos termos técnicos do dataset para identificação de espécies.</p>
+        
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle">
+                <thead>
+                    <tr>
+                        <th>Característica</th>
+                        <th>Opções (Tradução = Código)</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-corpo">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // JSON com chaves e valores traduzidos para Português
+    const dadosTraduzidos = {
+        "Classe": {"comestível": "e", "venenoso": "p"},
+        "Formato do Chapéu": {"sino": "b", "cônico": "c", "convexo": "x", "plano": "f", "rebaixado": "k", "afundado": "s"},
+        "Superfície do Chapéu": {"fibroso": "f", "sulcos": "g", "escamoso": "y", "liso": "s"},
+        "Cor do Chapéu": {"marrom": "n", "bege": "b", "canela": "c", "cinza": "g", "verde": "r", "rosa": "p", "roxo": "u", "vermelho": "e", "branco": "w", "amarelo": "y"},
+        "Hematomas (Manchas)": {"tem": "t", "não tem": "f"},
+        "Odor": {"amêndoa": "a", "anis": "l", "creosoto": "c", "peixe": "y", "fétido": "f", "mofo": "m", "nenhum": "n", "pungente": "p", "especiarias": "s"},
+        "Inserção das lamelas": {"anexada": "a", "decorrente": "d", "livre": "f", "chanfrada": "n"},
+        "Espaçamento das lamelas": {"fechado": "c", "aglomerado": "w", "distante": "d"},
+        "Tamanho das lamelas": {"largo": "b", "estreito": "n"},
+        "Cor das lamelas": {"preto": "k", "marrom": "n", "bege": "b", "chocolate": "h", "cinza": "g", "verde": "r", "laranja": "o", "rosa": "p", "roxo": "u", "vermelho": "e", "branco": "w", "amarelo": "y"},
+        "Formato do Estipe (Caule)": {"alargando": "e", "afunilando": "t"},
+        "Raiz do Estipe": {"bulboso": "b", "clava": "c", "copo": "u", "igual": "e", "rizomorfos": "z", "enraizado": "r", "ausente": "?"},
+        "Superfície acima do anel": {"fibroso": "f", "escamoso": "y", "sedoso": "k", "liso": "s"},
+        "Superfície abaixo do anel": {"fibroso": "f", "escamoso": "y", "sedoso": "k", "liso": "s"},
+        "Cor acima do anel": {"marrom": "n", "bege": "b", "canela": "c", "cinza": "g", "laranja": "o", "rosa": "p", "vermelho": "e", "branco": "w", "amarelo": "y"},
+        "Cor abaixo do anel": {"marrom": "n", "bege": "b", "canela": "c", "cinza": "g", "laranja": "o", "rosa": "p", "vermelho": "e", "branco": "w", "amarelo": "y"},
+        "Tipo de Véu": {"parcial": "p", "universal": "u"},
+        "Cor do Véu": {"marrom": "n", "laranja": "o", "branco": "w", "amarelo": "y"},
+        "Número de Anéis": {"nenhum": "n", "um": "o", "dois": "t"},
+        "Tipo de Anel": {"teia de aranha": "c", "evanescente": "e", "alargado": "f", "grande": "l", "nenhum": "n", "pendente": "p", "embainhado": "s", "zona": "z"},
+        "Cor do Esporo": {"preto": "k", "marrom": "n", "bege": "b", "chocolate": "h", "verde": "r", "laranja": "o", "roxo": "u", "branco": "w", "amarelo": "y"},
+        "População": {"abundante": "a", "agrupado": "c", "numeroso": "n", "disperso": "s", "vários": "v", "solitário": "y"},
+        "Habitat": {"gramados": "g", "folhas": "l", "prados": "m", "caminhos": "p", "urbano": "u", "resíduos": "w", "florestas": "d"}
+    };
+
+    const tbody = document.getElementById('tabela-corpo');
+
+    for (const [atributo, opcoes] of Object.entries(dadosTraduzidos)) {
+        let linha = `<tr>
+            <td class="attr-name">${atributo}</td>
+            <td>`;
+        
+        for (const [traducao, codigo] of Object.entries(opcoes)) {
+            linha += `<div class="item-group">
+                        <span>${traducao}</span><span class="badge-code">${codigo}</span>
+                      </div>`;
+        }
+        
+        linha += `</td></tr>`;
+        tbody.innerHTML += linha;
+    }
+</script>
+</body>
+</html>
